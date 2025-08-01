@@ -1,0 +1,25 @@
+---
+# Base role configuration defaults
+timezone: "UTC"
+
+# SSH public keys for gpiio user (override this in playbooks)
+ssh_public_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC4nbhaAWe5Rkkk1H0YA+q5978BY28rs1DvSmQZBaaZKdMbUR9BapFSODPosEKUfTNI7WLfiEa9Vos+YJ3EqLN+tqt/T2vZH9CrWWm1ykkiTEKTtp7iAUV5oBCoN51kO2gr4q1r03V2kKQFbTymq5UsVr4+Db2uaIMNkzD9ChTVvc1VA8C6wqMedaLjmcQz3rnN4+cMl74ERo9HbJLYDh2qU8EUj//ovJit6qoKkrqDYjTrLMyUHSSxSVWZ5BcKD9BSZcoB4cTUcFHhMMTiyFk+gIrL0tyfmhl8zcn9wMLuIuytD33/B4v62iIvIN9PbCl8oeLm3bRFPe4156JyD8rWLdBFQk3z3bhIEJboJFnQNUHqb8R06dS81kSBx/ZDGMu3huHNsc7KJYpHjnrtpJRypP51ay2iyWqNyrVh0YBmhvzrcZFTCxl5gfgzweKagzjgMCO6XV6YpOUCSPcGJtBwAZFrvhnRXyUQWtMILIpXxHsd1pT5jq4KsQRoKi/p5Fc= gpiio@debian"
+
+# Base packages to install
+base_packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - unzip
+  - jq
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Sysctl optimizations
+sysctl_settings:
+  vm.swappiness: 10
+  net.core.rmem_max: 16777216
+  net.core.wmem_max: 16777216

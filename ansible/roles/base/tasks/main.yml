@@ -1,0 +1,98 @@
+---
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - wget
+      - vim
+      - htop
+      - unzip
+      - jq
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - apt-transport-https
+    state: present
+
+- name: Create gpiio user
+  user:
+    name: gpiio
+    groups: sudo,adm
+    shell: /bin/bash
+    home: /home/gpiio
+    create_home: yes
+    state: present
+
+- name: Create .ssh directory for gpiio
+  file:
+    path: /home/gpiio/.ssh
+    state: directory
+    owner: gpiio
+    group: gpiio
+    mode: '0700'
+
+- name: Add SSH authorized keys for gpiio
+  authorized_key:
+    user: gpiio
+    state: present
+    key: "{{ item }}"
+  loop: "{{ ssh_public_keys | default([]) }}"
+  when: ssh_public_keys is defined and ssh_public_keys | length > 0
+
+- name: Enable passwordless sudo for sudo group
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%sudo'
+    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Create common directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/scripts
+    - /var/log/apps
+
+- name: Set timezone
+  timezone:
+    name: UTC
+
+- name: Configure logrotate for app logs
+  copy:
+    content: |
+      /var/log/apps/*.log {
+          daily
+          missingok
+          rotate 7
+          compress
+          delaycompress
+          notifempty
+          create 0640 root root
+      }
+    dest: /etc/logrotate.d/apps
+    mode: '0644'
+
+- name: Optimize sysctl for server use
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: 'vm.swappiness', value: '10' }
+    - { name: 'net.core.rmem_max', value: '16777216' }
+    - { name: 'net.core.wmem_max', value: '16777216' }
+
+- name: Clean package cache
+  apt:
+    autoclean: yes
+    autoremove: yes

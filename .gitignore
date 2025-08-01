@@ -1,0 +1,14 @@
+# Credential files
+*.secret
+secrets.sh
+credentials.yml
+.env
+
+# Build artifacts
+*.log
+packer_cache/
+builds/
+
+# Temporary files
+.DS_Store
+Thumbs.db

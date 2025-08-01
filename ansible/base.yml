@@ -1,0 +1,7 @@
+---
+- name: Configure Base Ubuntu Template
+  hosts: default
+  become: yes
+  
+  roles:
+    - base

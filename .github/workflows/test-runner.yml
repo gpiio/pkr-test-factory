@@ -1,0 +1,52 @@
+name: Test Runner
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '.github/workflows/test-runner.yml'
+
+jobs:
+  test:
+    name: Test Self-hosted Runner
+    runs-on: self-hosted
+    steps:
+      - name: Check runner info
+        run: |
+          echo "=== Runner Information ==="
+          echo "Runner name: ${{ runner.name }}"
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Runner temp: ${{ runner.temp }}"
+          echo "Runner workspace: ${{ runner.workspace }}"
+          
+      - name: Check tools
+        run: |
+          echo "=== Checking installed tools ==="
+          echo "Packer version:"
+          packer version
+          echo ""
+          echo "Git version:"
+          git --version
+          echo ""
+          echo "Ansible version:"
+          ansible --version
+          
+      - name: Check Proxmox connectivity
+        run: |
+          echo "=== Testing Proxmox API ==="
+          if [ -n "${{ secrets.PROXMOX_API_URL }}" ]; then
+            echo "Proxmox API URL is configured"
+            # Test API connectivity (without exposing credentials)
+            curl -k -s -o /dev/null -w "HTTP Status: %{http_code}\n" "${{ secrets.PROXMOX_API_URL }}" || true
+          else
+            echo "Proxmox API URL not configured in secrets"
+          fi
+          
+      - name: Summary
+        run: |
+          echo "## Runner Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Runner is working correctly!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runner**: ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Packer**: Available" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ansible**: Available" >> $GITHUB_STEP_SUMMARY

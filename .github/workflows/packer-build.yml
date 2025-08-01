@@ -1,0 +1,106 @@
+name: Packer Build
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '**.pkr.hcl'
+      - '**.pkrvars.hcl'
+      - 'data/**'
+      - 'ansible/**'
+      - '.github/workflows/packer-build.yml'
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Template to build (e.g., base-ubuntu)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - base-ubuntu
+
+env:
+  PKR_VAR_proxmox_api_url: ${{ secrets.PROXMOX_API_URL }}
+  PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
+  PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
+  PKR_VAR_vm_ssh_username: ${{ secrets.VM_SSH_USERNAME }}
+  PKR_VAR_vm_ssh_password: ${{ secrets.VM_SSH_PASSWORD }}
+
+jobs:
+  validate:
+    name: Validate Templates
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Packer templates
+        run: |
+          echo "=== Validating Packer Templates ==="
+          for template in *.pkr.hcl; do
+            if [ -f "$template" ]; then
+              echo "Validating: $template"
+              packer init "$template"
+              packer validate -var-file=variables.pkrvars.hcl "$template"
+            fi
+          done
+
+  build:
+    name: Build Templates
+    needs: validate
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        template:
+          - base-ubuntu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize Packer
+        run: |
+          echo "=== Initializing Packer Plugins ==="
+          packer init ${{ matrix.template }}.pkr.hcl
+
+      - name: Build template
+        id: build
+        run: |
+          echo "=== Building Template: ${{ matrix.template }} ==="
+          echo "Build started at: $(date)"
+          
+          # Set build metadata
+          export PKR_VAR_build_commit="${{ github.sha }}"
+          export PKR_VAR_build_branch="${{ github.ref_name }}"
+          export PKR_VAR_build_number="${{ github.run_number }}"
+          
+          # Run the build
+          packer build -var-file=variables.pkrvars.hcl ${{ matrix.template }}.pkr.hcl
+          
+          echo "Build completed at: $(date)"
+          echo "template=${{ matrix.template }}" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Post build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Template**: ${{ matrix.template }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.build.outputs.status || 'failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run**: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runner**: ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
+
+  cleanup:
+    name: Cleanup Failed Builds
+    needs: build
+    if: failure()
+    runs-on: self-hosted
+    steps:
+      - name: Clean up Proxmox resources
+        run: |
+          echo "=== Checking for orphaned VMs ==="
+          # Add cleanup logic here if needed
+          echo "Cleanup completed"
